@@ -67,15 +67,18 @@ class Euclidean(Distance):
     """
     def __init__(self,
                  samples=None,
+                 csv_file=None,
                  names=None):
         """
         Class constructor
         :param samples: List of sample dictionaries
+        :param csv_file: csv file containing samples
         :param names: Name of the columns or dimensions
         :return: Euclidean distance object
         """
 
         super(Euclidean, self).__init__(samples,
+                                        csv_file,
                                         names)
 
         self.distance_matrix = None
