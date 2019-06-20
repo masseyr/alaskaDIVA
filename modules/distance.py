@@ -1,9 +1,8 @@
 import numpy as np
-from common import *
 
 
 __all__ = ['Distance',
-           'Mahalanobis']
+           'Euclidean']
 
 
 class Distance(object):
@@ -13,157 +12,138 @@ class Distance(object):
 
     def __init__(self,
                  samples=None,
-                 names=None,
-                 index=None):
+                 names=None):
         """
         Class constructor
         :param samples: List of sample dictionaries
-        :param names: Name of the columns or dimensions
-        :param index: Name of index column
-        :return: _Distance object
+        :param names: Name of the data (or coordinate) columns
+        :return: Distance object
         """
         self.samples = samples
         self.nsamp = len(samples)
+        self.nvar = len(self.names)
         self.names = names
-        self.index = index
+        self.index = list(range(0, self.nsamp))
 
-        self.matrix = None
-        self.center = None
+        self.matrix = np.matrix([[self.samples[i][self.names[j]]
+                                  for j in range(0, self.nvar)]
+                                 for i in range(0, self.nsamp)])
 
     def __repr__(self):
         return "<Distance class object at {}>".format(hex(id(self)))
 
-    def sample_matrix(self):
+    def centroid(self,
+                 method='median'):
         """
-        Method to convert sample dictionaries to sample matrix
-        :return: Numpy matrix with columns as dimensions and rows as individual samples
-        """
-        # dimensions of the sample matrix
-        nsamp = len(self.samples)
-        nvar = len(self.names)
-
-        # copy data to matrix
-        samp_matrix = np.matrix([[self.samples[i][self.names[j]] for j in range(0, nvar)]
-                                 for i in range(0, nsamp)])
-        self.matrix = samp_matrix
-
-    def cluster_center(self,
-                       method='median'):
-        """
-        Method to determine cluster center of the sample matrix
+        Method to determine centroid of the sample matrix
         :param method: Type of reducer to use. Options: 'mean', 'median', 'percentile_x'
         :return: Cluster center (vector of column/dimension values)
         """
         if self.matrix is not None:
             if method == 'median':
-                self.center = np.array(np.median(self.matrix, axis=0))[0]
+                return np.array(np.median(self.matrix, axis=0))[0]
             elif method == 'mean':
-                self.center = np.array(np.mean(self.matrix, axis=0))[0]
+                return np.array(np.mean(self.matrix, axis=0))[0]
             elif 'percentile' in method:
                 perc = int(method.replace('percentile', '')[1:])
-                self.center = np.array(np.percentile(self.matrix, perc, axis=0))[0]
+                return np.array(np.percentile(self.matrix, perc, axis=0))[0]
             else:
                 raise ValueError("Invalid or no reducer")
         else:
             raise ValueError("Sample matrix not found")
 
 
-class Mahalanobis(Distance):
+class Euclidean(Distance):
     """
-    Class for calculating Mahalanobis distance from cluster center
+    Class for calculating Euclidean distance
     """
-
     def __init__(self,
                  samples=None,
-                 names=None,
-                 index=None):
+                 names=None):
         """
-        Class constructor
         Class constructor
         :param samples: List of sample dictionaries
         :param names: Name of the columns or dimensions
-        :param index: Name of index column
-        :return: Mahalanobis object
+        :return: Euclidean distance object
         """
 
-        super(Mahalanobis, self).__init__(samples,
-                                          names,
-                                          index)
+        super(Euclidean, self).__init__(samples,
+                                        names)
 
-        self.inverse = None
-        self.distance = None
+        self.distance_matrix = None
 
     def __repr__(self):
-        return "<Mahalanobis class object at {}>".format(hex(id(self)))
+        return "<Euclidean class object at {}>".format(hex(id(self)))
 
-    def covariance(self,
-                   inverse=False):
+    @staticmethod
+    def vec_dist(vec1,
+                 vec2):
         """
-        Method to calculate a covariance matrix for a given sample matrix
-        where rows are samples, columns are dimensions
-        :param inverse: Should the inverse matrix be calculated
-        :return: Covariance or inverse covariance matrix (numpy.matrix object)
+        Method to calculate distance between two vectors
+        :param vec1: first vector
+        :param vec2: second vector
+        :return: scalar
         """
-        cov_mat = np.cov(self.matrix,
-                         rowvar=False)
+        return np.linalg.norm(np.array(vec1)-np.array(vec2))
 
-        if inverse:
-            # Inverse using SVD
-            u, s, v = np.linalg.svd(cov_mat)
-
-            try:
-                return np.dot(np.dot(v.T, np.linalg.inv(np.diag(s))), u.T)
-
-            except ValueError:
-                return None
-        else:
-            return np.matrix(cov_mat)
-
-    def difference(self,
-                   transpose=False):
+    def calc_dist_matrix(self):
         """
-        Method to calculate difference from scene center
-        :return: matrix (numpy.ndarray)
+        Method to calculate euclidean distance from scene center
+        :return: 2d matrix
         """
-        center = self.center
+        out_stack = None
 
-        diff_matrix = np.matrix(np.apply_along_axis(lambda row: np.array(row) - center,
-                                                    axis=1,
-                                                    arr=np.array(self.matrix)))
+        for ii in range(self.nvar):
+            temp_tile = np.tile(self.matrix[:, ii][:, np.newaxis], (1, self.nsamp))[np.newaxis]
 
-        if transpose:
-            return diff_matrix.T
-        else:
-            return diff_matrix
-
-    def calc_distance(self):
-        """
-        Method to calculate mahalanobis distance from scene center
-        :return: scalar value
-        """
-        inv_cov_matrix = self.covariance(True)
-
-        diff = self.difference(False)
-        transpose_diff = self.difference(True)
-
-        mdist = np.zeros(self.nsamp)
-
-        for i in range(0, self.nsamp):
-
-            if inv_cov_matrix is None:
-                mdist[i] = np.nan
-                continue
-
-            prod = np.array(
-                            np.dot(
-                                np.dot(diff[i, :],
-                                       inv_cov_matrix),
-                                transpose_diff[:, i])
-                        )[0][0]
-
-            if prod < 0:
-                mdist[i] = np.nan
+            if ii == 0:
+                out_stack = temp_tile
             else:
-                mdist[i] = np.sqrt(prod)
+                out_stack = np.vstack([out_stack, temp_tile])
 
-        return list(mdist)
+        for jj in range(self.nvar):
+            temp_tile = np.tile(self.matrix[:, jj][:, np.newaxis], (1, self.nsamp))[np.newaxis].T
+
+            out_stack = np.vstack([out_stack, temp_tile])
+
+        self.distance_matrix = np.apply_along_axis(lambda x: np.linalg.norm(x[:self.nvar]-x[self.nvar:]),
+                                                   0,
+                                                   out_stack)
+
+    def proximity_filter(self,
+                         thresh=None):
+        """
+        method to remove points based on proximity threshold
+        :param thresh: proximity threshold (default: 90th percentile)
+        :return: None
+        """
+
+        if thresh is None:
+            thresh = self.centroid('percentile_90')
+
+        bad_loc = np.where(self.distance_matrix > thresh)
+
+        uniq, index, count = np.unique(np.concatenate(bad_loc),
+                                       return_index=True,
+                                       return_counts=True)
+
+        bad_pts1 = uniq[np.where(count > 2)[0]]
+
+        bad_pts2_loc = index[np.where(count == 2)[0]]
+        bad_pts2_arr = np.array([bad_loc[0][bad_pts2_loc], bad_loc[1][bad_pts2_loc]])
+        bad_pts2_tup_list = list(tuple(bad_pts2_arr[:, i]) for i in range(bad_pts2_arr.shape[1]))
+
+        bad_pts2 = list()
+        for bad_pts2_tup in bad_pts2_tup_list:
+            if bad_pts2_tup[0] in bad_pts2:
+                continue
+            else:
+                bad_pts2.append(bad_pts2_tup[1])
+
+        bad_pts2 = np.array(bad_pts2)
+
+        bad_pts = np.concatenate([bad_pts1, bad_pts2])
+
+        good_pts_list = np.delete(np.array(range(self.nsamp)), bad_pts).tolist()
+
+        self.samples = list(self.samples[i] for i in good_pts_list)
