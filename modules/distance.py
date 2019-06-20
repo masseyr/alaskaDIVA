@@ -1,24 +1,32 @@
 import numpy as np
+from samples import Samples
 
 
 __all__ = ['Distance',
            'Euclidean']
 
 
-class Distance(object):
+class Distance(Samples):
     """
     Parent class for all the distance type methods
     """
 
     def __init__(self,
                  samples=None,
+                 csv_file=None,
                  names=None):
+
         """
         Class constructor
         :param samples: List of sample dictionaries
+        :param csv_file: csv file containing samples
         :param names: Name of the data (or coordinate) columns
         :return: Distance object
         """
+
+        super(Distance, self).__init__(samples,
+                                       csv_file)
+
         self.samples = samples
         self.nsamp = len(samples)
         self.nvar = len(self.names)

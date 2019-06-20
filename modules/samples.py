@@ -7,18 +7,18 @@ from timer import Timer
 __all__ = ['Samples']
 
 
-class Samples:
+class Samples(object):
     """
     Class to read and arrange sample data.
     All columns should be data only.
     """
 
     def __init__(self,
-                 csv_file=None,
-                 samples=None):
+                 samples=None,
+                 csv_file=None):
 
         """
-        :param csv_file: csv file that contains the samples 
+        :param csv_file: csv file that contains the samples
         :param samples: List of dictionaries
         """
         self.csv_file = csv_file
