@@ -900,7 +900,8 @@ class Handler(object):
                       line_limit=None,
                       read_random=False,
                       percent_random=50.0,
-                      systematic=False):
+                      systematic=False,
+                      given_header=None):
         """
         Read csv as list of lists with header.
         Each row is a list and a sample point.
@@ -992,7 +993,10 @@ class Handler(object):
                     sys.stdout.write('100!\n')
 
         # convert col names to list of strings
-        names = list(elem.strip() for elem in lines[0])
+        if given_header is None:
+            names = list(elem.strip() for elem in lines[0])
+        else:
+            names = given_header
 
         if len(lines) > 0:
             # convert to list
