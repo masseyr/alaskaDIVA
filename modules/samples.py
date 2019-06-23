@@ -182,29 +182,35 @@ class Samples(object):
         return trn_samp, val_samp
 
     def random_selection(self,
-                         num=10):
+                         num=None):
 
         """
         Method to select a smaller number of samples from the Samples object
         :param num: Number of samples to select
         :return: Samples object
         """
+        if num is not None:
+            if num >= self.nsamp:
+                print('Number larger than population: {} specified for {} samples'.format(str(num),
+                                                                                          str(self.nsamp)))
+                ran_samp_n = self.index
+            else:
+                ran_samp_n = np.random.choice(self.index,
+                                              size=num,
+                                              replace=False)
 
-        if num >= self.nsamp:
-            print('Number larger than population: {} specified for {} samples'.format(str(num),
-                                                                                      str(self.nsamp)))
-            ran_samp_n = self.index
+            # training sample object
+            ran_samp = Samples()
+            ran_samp.samples = list(self.samples[i] for i in ran_samp_n)
+            ran_samp.nsamp = len(ran_samp.samples)
+            ran_samp.index = list(range(ran_samp.nsamp))
+            ran_samp.nfeat = len(ran_samp.samples[0])
         else:
-            ran_samp_n = np.random.choice(self.index,
-                                          size=num,
-                                          replace=False)
-
-        # training sample object
-        ran_samp = Samples()
-        ran_samp.samples = list(self.samples[i] for i in ran_samp_n)
-        ran_samp.nsamp = len(ran_samp.samples)
-        ran_samp.index = list(range(ran_samp.nsamp))
-        ran_samp.nfeat = len(ran_samp.samples[0])
+            ran_samp = Samples()
+            ran_samp.samples = self.samples
+            ran_samp.nsamp = self.nsamp
+            ran_samp.index = self.index
+            ran_samp.nfeat = self.nfeat
 
         return ran_samp
 
@@ -257,3 +263,24 @@ class Samples(object):
             fold_samples.append((self.selection(trn_index), self.selection(val_index)))
 
         return fold_samples
+
+    @classmethod
+    def get_dict_list(cls,
+                      numpy_arr,
+                      header):
+        """
+        Method to convert numpy array to list of dictionaries
+        :param numpy_arr:
+        :param header:
+        :return: list of dicts
+        """
+
+        l1 = numpy_arr.tolist()
+        out_list = list()
+
+        for list_data in l1:
+            out_list.append(dict(zip(header, list_data)))
+
+        return cls(samples=out_list)
+
+
