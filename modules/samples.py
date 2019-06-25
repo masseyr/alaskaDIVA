@@ -15,7 +15,8 @@ class Samples(object):
 
     def __init__(self,
                  samples=None,
-                 csv_file=None):
+                 csv_file=None,
+                 names=None):
 
         """
         :param csv_file: csv file that contains the samples
@@ -30,10 +31,9 @@ class Samples(object):
             self.samples = samples
             self.nsamp = len(samples)
 
-        elif samples is None and csv_file is not None:
+        elif csv_file is not None:
             self.samples = Handler(filename=csv_file).read_from_csv(return_dicts=True)
             self.nsamp = len(self.samples)
-
         else:
             warnings.warn('Empty Samples class initialized')
             self.samples = None
@@ -43,6 +43,15 @@ class Samples(object):
             self.index = list(range(self.nsamp))
         else:
             self.index = list()
+
+        if names is not None:
+            self.names = names
+        elif self.samples is not None:
+            self.names = list(self.samples[0])
+        else:
+            self.names = list()
+
+        self.nvar = len(self.names)
 
     def __repr__(self):
         """
@@ -166,15 +175,15 @@ class Samples(object):
                                          trn_sites)].tolist()
 
         # training sample object
-        trn_samp = Samples()
-        trn_samp.samples = list(self.samples[i] for i in trn_sites)
+        trn_samp = Samples(samples=list(self.samples[i] for i in trn_sites))
+        trn_samp.names = self.names
         trn_samp.nsamp = len(trn_samp.samples)
         trn_samp.index = list(range(trn_samp.nsamp))
         trn_samp.nfeat = len(trn_samp.samples[0])
 
         # validation sample object
-        val_samp = Samples()
-        val_samp.samples = list(self.samples[i] for i in val_sites)
+        val_samp = Samples(samples=list(self.samples[i] for i in val_sites))
+        val_samp.names = self.names
         val_samp.nsamp = len(val_samp.samples)
         val_samp.index = list(range(val_samp.nsamp))
         val_samp.nfeat = len(val_samp.samples[0])
@@ -200,14 +209,14 @@ class Samples(object):
                                               replace=False)
 
             # training sample object
-            ran_samp = Samples()
-            ran_samp.samples = list(self.samples[i] for i in ran_samp_n)
+            ran_samp = Samples(samples=list(self.samples[i] for i in ran_samp_n))
+            ran_samp.names = self.names
             ran_samp.nsamp = len(ran_samp.samples)
             ran_samp.index = list(range(ran_samp.nsamp))
             ran_samp.nfeat = len(ran_samp.samples[0])
         else:
-            ran_samp = Samples()
-            ran_samp.samples = self.samples
+            ran_samp = Samples(samples=self.samples)
+            ran_samp.names = self.names
             ran_samp.nsamp = self.nsamp
             ran_samp.index = self.index
             ran_samp.nfeat = self.nfeat
@@ -227,8 +236,8 @@ class Samples(object):
         if type(index_list).__name__ == 'ndarray':
             index_list = index_list.copy().tolist()
 
-        ran_samp = Samples()
-        ran_samp.samples = list(self.samples[i] for i in index_list)
+        ran_samp = Samples(samples=list(self.samples[i] for i in index_list))
+        ran_samp.names = self.names
         ran_samp.nsamp = len(ran_samp.samples)
         ran_samp.index = list(range(ran_samp.nsamp))
         ran_samp.nfeat = len(ran_samp.samples[0])
@@ -282,5 +291,3 @@ class Samples(object):
             out_list.append(dict(zip(header, list_data)))
 
         return cls(samples=out_list)
-
-
