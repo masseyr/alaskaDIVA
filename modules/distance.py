@@ -1,5 +1,6 @@
 import numpy as np
 from samples import Samples
+from common import Handler
 
 
 __all__ = ['Distance',
@@ -25,17 +26,21 @@ class Distance(Samples):
         """
 
         super(Distance, self).__init__(samples,
-                                       csv_file)
+                                       csv_file,
+                                       names)
 
-        self.samples = samples
-        self.nsamp = len(samples)
-        self.nvar = len(self.names)
-        self.names = names
-        self.index = list(range(0, self.nsamp))
+        if self.samples is not None:
+            self.matrix = np.array([[Handler.string_to_type(self.samples[i][self.names[j]])
+                                     for j in range(0, self.nvar)]
+                                    for i in range(0, self.nsamp)])
+        else:
+            self.matrix = None
 
-        self.matrix = np.matrix([[self.samples[i][self.names[j]]
-                                  for j in range(0, self.nvar)]
-                                 for i in range(0, self.nsamp)])
+        if self.nsamp > 0:
+            self.distance_matrix = np.zeros([self.nsamp, self.nvar],
+                                            dtype=np.float)
+        else:
+            self.distance_matrix = None
 
     def __repr__(self):
         return "<Distance class object at {}>".format(hex(id(self)))
@@ -81,16 +86,15 @@ class Euclidean(Distance):
                                         csv_file,
                                         names)
 
-        self.distance_matrix = None
-
     def __repr__(self):
-        return "<Euclidean class object at {}>".format(hex(id(self)))
+        return "<Euclidean class object at {} with {} samples>".format(hex(id(self)),
+                                                                       str(len(self.samples)))
 
     @staticmethod
-    def vec_dist(vec1,
+    def euc_dist(vec1,
                  vec2):
         """
-        Method to calculate distance between two vectors
+        Method to calculate euclidean distance between two vectors
         :param vec1: first vector
         :param vec2: second vector
         :return: scalar
@@ -99,27 +103,21 @@ class Euclidean(Distance):
 
     def calc_dist_matrix(self):
         """
-        Method to calculate euclidean distance from scene center
+        Method to calculate euclidean distance from each sample
+         and make a matrix
         :return: 2d matrix
         """
-        out_stack = None
+        if self.distance_matrix is not None:
 
-        for ii in range(self.nvar):
-            temp_tile = np.tile(self.matrix[:, ii][:, np.newaxis], (1, self.nsamp))[np.newaxis]
+            for ii in range(self.nsamp):
+                print(self.matrix[ii, :])
 
-            if ii == 0:
-                out_stack = temp_tile
-            else:
-                out_stack = np.vstack([out_stack, temp_tile])
-
-        for jj in range(self.nvar):
-            temp_tile = np.tile(self.matrix[:, jj][:, np.newaxis], (1, self.nsamp))[np.newaxis].T
-
-            out_stack = np.vstack([out_stack, temp_tile])
-
-        self.distance_matrix = np.apply_along_axis(lambda x: np.linalg.norm(x[:self.nvar]-x[self.nvar:]),
-                                                   0,
-                                                   out_stack)
+                self.distance_matrix[:, ii] = np.apply_along_axis(lambda x: Euclidean.euc_dist(x,
+                                                                                               self.matrix[ii, :]),
+                                                                  0,
+                                                                  self.matrix)
+        else:
+            raise ValueError('No samples to calculate distances from')
 
     def proximity_filter(self,
                          thresh=None):
