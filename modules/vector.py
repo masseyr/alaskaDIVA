@@ -40,7 +40,7 @@ class Vector(object):
         self.attributes = list()
         self.wktlist = list()
 
-        self.precision = 8  # Precision is set only for float attributes
+        self.precision = 16  # Precision is set only for float attributes
         self.width = 50  # Width is set for string characters
         self.epsg = epsg  # EPSG SRID
         self.proj4 = proj4
