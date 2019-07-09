@@ -37,7 +37,7 @@ class Distance(Samples):
             self.matrix = None
 
         if self.nsamp > 0:
-            self.distance_matrix = np.zeros([self.nsamp, self.nvar],
+            self.distance_matrix = np.zeros([self.nsamp, self.nsamp],
                                             dtype=np.float)
         else:
             self.distance_matrix = None
@@ -99,6 +99,7 @@ class Euclidean(Distance):
         :param vec2: second vector
         :return: scalar
         """
+
         return np.linalg.norm(np.array(vec1)-np.array(vec2))
 
     def calc_dist_matrix(self):
@@ -110,12 +111,10 @@ class Euclidean(Distance):
         if self.distance_matrix is not None:
 
             for ii in range(self.nsamp):
-                print(self.matrix[ii, :])
-
-                self.distance_matrix[:, ii] = np.apply_along_axis(lambda x: Euclidean.euc_dist(x,
-                                                                                               self.matrix[ii, :]),
-                                                                  0,
+                self.distance_matrix[:, ii] = np.apply_along_axis(lambda x: Euclidean.euc_dist(x, self.matrix[ii, :]),
+                                                                  1,
                                                                   self.matrix)
+
         else:
             raise ValueError('No samples to calculate distances from')
 
@@ -130,29 +129,26 @@ class Euclidean(Distance):
         if thresh is None:
             thresh = self.centroid('percentile_90')
 
-        bad_loc = np.where(self.distance_matrix > thresh)
+        n_proxim = np.apply_along_axis(lambda x: np.count_nonzero(x < thresh),
+                                       0,
+                                       self.distance_matrix)
 
-        uniq, index, count = np.unique(np.concatenate(bad_loc),
-                                       return_index=True,
-                                       return_counts=True)
+        idx = np.argsort(n_proxim).tolist()
+        idx_out = list()
 
-        bad_pts1 = uniq[np.where(count > 2)[0]]
+        for ii in idx:
+            for jj in range(ii+1):
+                if ii not in idx_out:
+                    if self.distance_matrix[ii, jj] < thresh:
+                        if ii != jj:
+                            idx_out.append(jj)
 
-        bad_pts2_loc = index[np.where(count == 2)[0]]
-        bad_pts2_arr = np.array([bad_loc[0][bad_pts2_loc], bad_loc[1][bad_pts2_loc]])
-        bad_pts2_tup_list = list(tuple(bad_pts2_arr[:, i]) for i in range(bad_pts2_arr.shape[1]))
+        pop_idx = sorted(np.unique(idx_out).tolist(),
+                         reverse=True)
 
-        bad_pts2 = list()
-        for bad_pts2_tup in bad_pts2_tup_list:
-            if bad_pts2_tup[0] in bad_pts2:
-                continue
-            else:
-                bad_pts2.append(bad_pts2_tup[1])
+        for pop_id in pop_idx:
+            self.samples.pop(pop_id)
 
-        bad_pts2 = np.array(bad_pts2)
+        self.nsamp = len(self.samples)
 
-        bad_pts = np.concatenate([bad_pts1, bad_pts2])
 
-        good_pts_list = np.delete(np.array(range(self.nsamp)), bad_pts).tolist()
-
-        self.samples = list(self.samples[i] for i in good_pts_list)
