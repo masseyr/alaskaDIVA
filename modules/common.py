@@ -1066,10 +1066,12 @@ class Handler(object):
         return result  # list
 
     @staticmethod
-    def string_to_type(x):
+    def string_to_type(x,
+                       return_type=False):
         """
         Method to return name of the data type
         :param x: input item
+        :param return_type: return the type of variable
         :return: string
         """
         if type(x).__name__ == 'str':
@@ -1085,7 +1087,10 @@ class Handler(object):
                     except:
                         val = None
             x = val
-        return x
+        if return_type:
+            return type(x).__name__
+        else:
+            return x
 
 
 class Opt:
