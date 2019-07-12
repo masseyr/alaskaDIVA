@@ -1078,3 +1078,61 @@ class Vector(object):
 
         target_ds = None
 
+    @staticmethod
+    def partition_bounds(coords,
+                         nparts=5,
+                         part='vert'):
+        """
+        partition a bounds rectangle vertically or horizontally
+        :param coords: input bound coordinates list of (x,y)
+        :param nparts: number of partitions
+        :param part: type of partition - 'vert' or 'horiz' -tally stacked parts
+        :return: list of bound rectangles - subset from original
+        """
+
+        minx = min(list(coord[0] for coord in coords))
+        miny = min(list(coord[1] for coord in coords))
+        maxx = max(list(coord[0] for coord in coords))
+        maxy = max(list(coord[1] for coord in coords))
+
+        out_coords_list = list()
+
+        if part == 'horiz':
+            ypart_list = Sublist.frange(miny, maxy, div=nparts)
+            ypart_tup = ypart_list.tuple_by_pairs()
+
+            for tup in ypart_tup:
+                coords_ = [[minx, tup[0]],
+                           [minx, tup[1]],
+                           [maxx, tup[1]],
+                           [maxx, tup[0]],
+                           [minx, tup[0]]]
+
+                out_coords_list.append(coords_)
+
+        if part == 'vert':
+            xpart_list = Sublist.frange(minx, maxx, div=nparts)
+            xpart_tup = xpart_list.tuple_by_pairs()
+
+            for tup in xpart_tup:
+                coords_ = [[tup[0], miny],
+                           [tup[0], maxy],
+                           [tup[1], maxy],
+                           [tup[1], miny],
+                           [tup[0], miny]]
+
+                out_coords_list.append(coords_)
+
+        return out_coords_list
+
+
+
+
+
+
+
+
+
+
+
+
