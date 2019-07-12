@@ -1,6 +1,7 @@
+import sys
 import numpy as np
 from samples import Samples
-from common import Handler
+from common import Handler, Opt
 
 
 __all__ = ['Distance',
@@ -102,6 +103,20 @@ class Euclidean(Distance):
 
         return np.linalg.norm(np.array(vec1)-np.array(vec2))
 
+    @staticmethod
+    def mat_dist(vec1,
+                 mat1):
+        """
+        Method to calculate euclidean distance between between a vector and all the vectors in a matrix
+        :param vec1: vector
+        :param mat1: matrix (numpy array of vectors)
+        :return: numpy array of scalars
+        """
+
+        return np.apply_along_axis(lambda x: Euclidean.euc_dist(x, vec1),
+                                   1,
+                                   mat1)
+
     def calc_dist_matrix(self):
         """
         Method to calculate euclidean distance from each sample
@@ -109,11 +124,12 @@ class Euclidean(Distance):
         :return: 2d matrix
         """
         if self.distance_matrix is not None:
+            sys.stdout.write('Building distance matrix : ')
 
-            for ii in range(self.nsamp):
-                self.distance_matrix[:, ii] = np.apply_along_axis(lambda x: Euclidean.euc_dist(x, self.matrix[ii, :]),
-                                                                  1,
-                                                                  self.matrix)
+            self.distance_matrix = np.apply_along_axis(lambda x: Euclidean.mat_dist(x, self.matrix),
+                                                       1,
+                                                       self.matrix)
+            sys.stdout.write('Done!\n')
 
         else:
             raise ValueError('No samples to calculate distances from')
@@ -129,21 +145,25 @@ class Euclidean(Distance):
         if thresh is None:
             thresh = self.centroid('percentile_90')
 
-        n_proxim = np.apply_along_axis(lambda x: np.count_nonzero(x < thresh),
+        # number of close proximities associated with each element
+        n_proxim = np.apply_along_axis(lambda x: np.count_nonzero((x > 0.0) & (x < thresh)),
                                        0,
                                        self.distance_matrix)
 
+        # sort the indices in increasing order of n_proxim
         idx = np.argsort(n_proxim).tolist()
         idx_out = list()
 
+        # find indices of elements that should be removed
         for ii in idx:
-            for jj in range(ii+1):
-                if ii not in idx_out:
-                    if self.distance_matrix[ii, jj] < thresh:
-                        if ii != jj:
-                            idx_out.append(jj)
+            if ii not in idx_out:
+                arr = self.distance_matrix[ii, 0:(ii+1)]
+                temp_list = (np.where((arr < thresh) & (arr > 0.0))[0]).tolist()
+                idx_out += temp_list
+                idx_out = list(set(idx_out))
 
-        pop_idx = sorted(np.unique(idx_out).tolist(),
+        # sort the indices in decreasing order for pop()
+        pop_idx = sorted(list(set(idx_out)),
                          reverse=True)
 
         for pop_id in pop_idx:
