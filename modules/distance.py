@@ -124,12 +124,12 @@ class Euclidean(Distance):
         :return: 2d matrix
         """
         if self.distance_matrix is not None:
-            sys.stdout.write('Building distance matrix : ')
+            Opt.cprint('Building distance matrix : ', newline='')
 
             self.distance_matrix = np.apply_along_axis(lambda x: Euclidean.mat_dist(x, self.matrix),
                                                        1,
                                                        self.matrix)
-            sys.stdout.write('Done!\n')
+            Opt.cprint('Done!')
 
         else:
             raise ValueError('No samples to calculate distances from')
@@ -141,6 +141,7 @@ class Euclidean(Distance):
         :param thresh: proximity threshold (default: 90th percentile)
         :return: None
         """
+        Opt.cprint('Applying proximity filter...')
 
         if thresh is None:
             thresh = self.centroid('percentile_90')
@@ -149,6 +150,9 @@ class Euclidean(Distance):
         n_proxim = np.apply_along_axis(lambda x: np.count_nonzero((x > 0.0) & (x < thresh)),
                                        0,
                                        self.distance_matrix)
+
+        Opt.cprint('Max group size : {} '.format(str(n_proxim.max())), newline='')
+        Opt.cprint('Min group size : {} '.format(str(n_proxim.min())))
 
         # sort the indices in increasing order of n_proxim
         idx = np.argsort(n_proxim).tolist()
@@ -165,6 +169,8 @@ class Euclidean(Distance):
         # sort the indices in decreasing order for pop()
         pop_idx = sorted(list(set(idx_out)),
                          reverse=True)
+
+        Opt.cprint('Removing {} elements...'.format(str(len(pop_idx))))
 
         for pop_id in pop_idx:
             self.samples.pop(pop_id)
