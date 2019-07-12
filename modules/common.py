@@ -312,7 +312,7 @@ class Sublist(list):
         end = end + step - (end % step)
 
         # initialize the list
-        out = Sublist()
+        out = cls()
 
         # make iterator
         if step is not None:
@@ -389,7 +389,7 @@ class Sublist(list):
             return temp
 
         else:
-            raise ValueError("Start value is less than end value")
+            raise ValueError("End value is less than start value")
 
     def reverse(self):
         """reversed list"""
@@ -946,10 +946,11 @@ class Handler(object):
                             counter += 1
 
                             if counter > int((float(perc_) / 100.0) * float(len(index_list))):
-                                sys.stdout.write('{}..'.format(str(perc_)))
-                                perc_ += 10
-
-                    sys.stdout.write('100!\n')
+                                if perc_ < 100:
+                                    sys.stdout.write('{}..'.format(str(perc_)))
+                                    perc_ += 10
+                                else:
+                                    sys.stdout.write('100!\n')
 
                 else:
                     for line in f:
@@ -959,10 +960,11 @@ class Handler(object):
                         counter += 1
 
                         if counter > int((float(perc_) / 100.0) * float(line_limit)):
-                            sys.stdout.write('{}..'.format(str(perc_)))
-                            perc_ += 10
-
-                    sys.stdout.write('100!\n')
+                            if perc_ < 100:
+                                sys.stdout.write('{}..'.format(str(perc_)))
+                                perc_ += 10
+                            else:
+                                sys.stdout.write('100!\n')
 
             else:
                 if len(index_list) > 0:
