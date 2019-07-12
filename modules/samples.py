@@ -206,7 +206,7 @@ class Samples(object):
             else:
                 ran_samp_n = np.random.choice(self.index,
                                               size=num,
-                                              replace=False)
+                                              replace=False).tolist()
 
             # training sample object
             ran_samp = Samples(samples=list(self.samples[i] for i in ran_samp_n))
