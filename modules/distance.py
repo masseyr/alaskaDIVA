@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 from samples import Samples
 from common import Handler, Opt
@@ -104,20 +103,19 @@ class Euclidean(Distance):
         return np.linalg.norm(np.array(vec1)-np.array(vec2))
 
     @staticmethod
-    def mat_dist(vec1,
-                 mat1):
+    def mat_dist(vec1, mat1):
         """
         Method to calculate euclidean distance between between a vector and all the vectors in a matrix
         :param vec1: vector
         :param mat1: matrix (numpy array of vectors)
         :return: numpy array of scalars
         """
-
-        return np.apply_along_axis(lambda x: Euclidean.euc_dist(x, vec1),
+        return np.apply_along_axis(lambda x: Euclidean.euc_dist(x, np.array(vec1)),
                                    1,
                                    mat1)
 
-    def calc_dist_matrix(self):
+    def calc_dist_matrix(self,
+                         approach=2):
         """
         Method to calculate euclidean distance from each sample
          and make a matrix
@@ -126,9 +124,27 @@ class Euclidean(Distance):
         if self.distance_matrix is not None:
             Opt.cprint('Building distance matrix : ', newline='')
 
-            self.distance_matrix = np.apply_along_axis(lambda x: Euclidean.mat_dist(x, self.matrix),
-                                                       1,
-                                                       self.matrix)
+            if approach == 1:
+
+                self.distance_matrix = np.apply_along_axis(lambda x: Euclidean.mat_dist(x, self.matrix),
+                                                           1,
+                                                           self.matrix)
+
+            elif approach == 2:
+                ndims = self.matrix.shape[1]
+
+                temp_mat = np.zeros([self.matrix.shape[0], self.matrix.shape[0]])
+
+                for dim in range(ndims):
+                    arr = np.repeat(self.matrix[:, dim][:, np.newaxis], self.nsamp, 1)
+                    arr_ = arr.T
+                    temp_mat += (arr - arr_) ** 2
+
+                self.distance_matrix = np.sqrt(temp_mat)
+
+            else:
+                raise ValueError('Unrecognized approach')
+
             Opt.cprint('Done!')
 
         else:
