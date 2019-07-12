@@ -36,11 +36,9 @@ class Distance(Samples):
         else:
             self.matrix = None
 
-        if self.nsamp > 0:
-            self.distance_matrix = np.zeros([self.nsamp, self.nsamp],
-                                            dtype=np.float)
-        else:
-            self.distance_matrix = None
+        self.grid = None
+
+        self.distance_matrix = None
 
     def __repr__(self):
         return "<Distance class object at {}>".format(hex(id(self)))
@@ -64,6 +62,18 @@ class Distance(Samples):
                 raise ValueError("Invalid or no reducer")
         else:
             raise ValueError("Sample matrix not found")
+    '''
+    def grid_gen(self,
+                 chunk_size=1024):
+
+        if self.nsamp > chunk_size:
+            nparts = self.nsamp // chunk_size + 1
+
+        for ii in range(self.nvar):
+            min = np.min(self.matrix[:, ii])
+            max = np.max(self.matrix[:, ii])
+
+    '''
 
 
 class Euclidean(Distance):
@@ -121,34 +131,31 @@ class Euclidean(Distance):
          and make a matrix
         :return: 2d matrix
         """
-        if self.distance_matrix is not None:
-            Opt.cprint('Building distance matrix : ', newline='')
 
-            if approach == 1:
+        Opt.cprint('Building distance matrix : ', newline='')
 
-                self.distance_matrix = np.apply_along_axis(lambda x: Euclidean.mat_dist(x, self.matrix),
-                                                           1,
-                                                           self.matrix)
+        if approach == 1:
 
-            elif approach == 2:
-                ndims = self.matrix.shape[1]
+            self.distance_matrix = np.apply_along_axis(lambda x: Euclidean.mat_dist(x, self.matrix),
+                                                       1,
+                                                       self.matrix)
 
-                temp_mat = np.zeros([self.matrix.shape[0], self.matrix.shape[0]])
+        elif approach == 2:
+            ndims = self.matrix.shape[1]
 
-                for dim in range(ndims):
-                    arr = np.repeat(self.matrix[:, dim][:, np.newaxis], self.nsamp, 1)
-                    arr_ = arr.T
-                    temp_mat += (arr - arr_) ** 2
+            temp_mat = np.zeros([self.matrix.shape[0], self.matrix.shape[0]], np.float32)
 
-                self.distance_matrix = np.sqrt(temp_mat)
+            for dim in range(ndims):
+                arr = np.repeat(self.matrix[:, dim][:, np.newaxis], self.nsamp, 1)
+                arr_ = arr.T
+                temp_mat += (arr - arr_) ** 2
 
-            else:
-                raise ValueError('Unrecognized approach')
-
-            Opt.cprint('Done!')
+            self.distance_matrix = np.sqrt(temp_mat)
 
         else:
-            raise ValueError('No samples to calculate distances from')
+            raise ValueError('Unrecognized approach')
+
+        Opt.cprint('Done!')
 
     def proximity_filter(self,
                          thresh=None):
@@ -192,5 +199,6 @@ class Euclidean(Distance):
             self.samples.pop(pop_id)
 
         self.nsamp = len(self.samples)
+        self.index = list(range(self.nsamp))
 
 
