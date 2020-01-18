@@ -12,7 +12,6 @@ import gzip
 import sys
 import os
 
-
 __all__ = ['Sublist',
            'Handler',
            'FTPHandler',
@@ -23,7 +22,6 @@ __all__ = ['Sublist',
            'OGR_TYPE_DEF',
            'GDAL_FIELD_DEF',
            'GDAL_FIELD_DEF_INV']
-
 
 OGR_FIELD_DEF = {
     'int': ogr.OFTInteger,
@@ -46,35 +44,31 @@ GDAL_FIELD_DEF = {
     'ulong': gdal.GDT_UInt32,
 }
 
-
 OGR_FIELD_DEF_INV = dict(list((v, k) for k, v in OGR_FIELD_DEF.items()))
-
 
 GDAL_FIELD_DEF_INV = dict(list((v, k) for k, v in GDAL_FIELD_DEF.items()))
 
-
 OGR_TYPE_DEF = {
-            'point': 1,
-            'line': 2,
-            'linestring': 2,
-            'polygon': 3,
-            'multipoint': 4,
-            'multilinestring': 5,
-            'multipolygon': 6,
-            'geometry': 0,
-            'no geometry': 100
+    'point': 1,
+    'line': 2,
+    'linestring': 2,
+    'polygon': 3,
+    'multipoint': 4,
+    'multilinestring': 5,
+    'multipolygon': 6,
+    'geometry': 0,
+    'no geometry': 100
 }
 
-
 OGR_GEOM_DEF = {
-                1: 'point',
-                2: 'line',
-                3: 'polygon',
-                4: 'multipoint',
-                5: 'multilinestring',
-                6: 'multipolygon',
-                0: 'geometry',
-                100: 'no geometry',
+    1: 'point',
+    2: 'line',
+    3: 'polygon',
+    4: 'multipoint',
+    5: 'multilinestring',
+    6: 'multipolygon',
+    0: 'geometry',
+    100: 'no geometry',
 }
 
 
@@ -82,6 +76,7 @@ class Sublist(list):
     """
     Class to handle list operations
     """
+
     def __eq__(self,
                other):
         """
@@ -235,8 +230,12 @@ class Sublist(list):
         :param elem: item or list
         :return: list
         """
-        elem_ = set(list(elem))
-        return (np.array(self)[~np.in1d(np.array(self), np.array(elem_))]).tolist()
+        if type(elem).__name__ not in ('list', 'tuple', 'generator'):
+            return (np.array(self)[~np.in1d(np.array(self), np.array(elem))]).tolist()
+
+        else:
+            elem_ = list(set(list(elem)))
+            return (np.array(self)[~np.in1d(np.array(self), np.array(elem_))]).tolist()
 
     @staticmethod
     def list_size(query_list):
@@ -259,7 +258,7 @@ class Sublist(list):
         :return: list
         """
         nelem = len(self)
-        nelem_by_percent = int(round((float(nelem)*float(100 - percent))/float(100)))
+        nelem_by_percent = int(round((float(nelem) * float(100 - percent)) / float(100)))
         return random.sample(self, nelem_by_percent)
 
     def random_selection(self,
@@ -280,7 +279,7 @@ class Sublist(list):
             return self
 
         elif systematic:
-            diff_seq = self.custom_list(0, len(self)-1, step=int(float(len(self))/float(num)))
+            diff_seq = self.custom_list(0, len(self) - 1, step=int(float(len(self)) / float(num)))
             temp = arr[np.array(diff_seq)]
             return Sublist(temp)
 
@@ -293,7 +292,7 @@ class Sublist(list):
         :return: List of tuples
         """
 
-        return Sublist((self[i], self[i+1]) for i in range(len(self) - 1))
+        return Sublist((self[i], self[i + 1]) for i in range(len(self) - 1))
 
     @classmethod
     def custom_list(cls,
@@ -312,7 +311,7 @@ class Sublist(list):
         end = end + step - (end % step)
 
         # initialize the list
-        out = cls()
+        out = Sublist()
 
         # make iterator
         if step is not None:
@@ -342,6 +341,74 @@ class Sublist(list):
         """
         return Sublist(self.index(x) if x in self else -1 for x in pattern)
 
+    @staticmethod
+    def hist(var_list,
+             nbins=20,
+             minmax=None):
+
+        if minmax is None:
+            minmax = (min(var_list), max(var_list))
+
+        bin_edges = Sublist.frange(minmax[0], minmax[1], div=nbins)
+        freq_list = list(0 for _ in range(len(bin_edges) - 1))
+
+        for elem in var_list:
+            for ii in range(len(bin_edges) - 1):
+                if bin_edges[ii] <= elem < bin_edges[ii + 1]:
+                    freq_list[ii] += 1
+
+        return freq_list, bin_edges
+
+    @staticmethod
+    def hist_equalize(list_dicts,
+                      num=None,
+                      pctl=50,
+                      nbins=20,
+                      var=None,
+                      minmax=None):
+
+        if var is None:
+            raise ValueError('Variable not specified')
+        else:
+            var_list = np.array(list(elem[var] for elem in list_dicts))
+
+            if minmax is None:
+                minmax = (np.min(var_list),
+                          np.max(var_list))
+
+            freq_list, bin_edges = np.histogram(var_list,
+                                                bins=nbins,
+                                                range=minmax)
+
+            if num is None:
+                pctl_val = Sublist.percentile(freq_list,
+                                              pctl=pctl)
+            else:
+                pctl_val = num
+
+            out_list = list()
+
+            for ii in range(len(freq_list)):
+
+                if ii == (len(freq_list) - 1):
+                    indices = np.where((var_list >= bin_edges[ii]) &
+                                       (var_list <= bin_edges[ii + 1]))[0]
+
+                else:
+                    indices = np.where((var_list >= bin_edges[ii]) &
+                                       (var_list < bin_edges[ii + 1]))[0]
+
+                if indices.shape[0] > pctl_val:
+                    out_indices = np.random.choice(indices,
+                                                   size=pctl_val,
+                                                   replace=False)
+                else:
+                    out_indices = indices
+
+                out_list += list(list_dicts[jj] for jj in out_indices.tolist())
+
+            return out_list
+
     def count_in_range(self,
                        llim,
                        ulim):
@@ -364,36 +431,50 @@ class Sublist(list):
         :param start: start number
         :param end: end number
         :param step: step
-        :param div: Division between start and end
+        :param div: Number of divisions between start and end
         :return: list
         """
         if end > start:
+            return_rev = False
+        elif end < start:
+            start, end = end, start
+            return_rev = True
+        else:
+            raise ValueError("Start and end value are the same!")
 
-            if div is not None:
-                step = (end-start)/float(div)
-            elif step is not None:
-                if (end - start) % step > 0.0:
-                    div = long((end - start) / step)
-                else:
-                    div = long((end - start) / step) - 1
+        if div is not None:
+            temp = Sublist(start + i * ((end - start) / float(div)) for i in range(0, div)) + [end]
+
+        elif step is not None:
+            if (end - start) % step == 0.0:
+                temp = Sublist(start + i * step for i in range(0, int((end - start) / step))) + [end]
             else:
-                raise ValueError("No step or division defined")
-
-            temp = Sublist(0.0 for _ in range(div + 1))
-
-            for i in range(0, div):
-                temp[i] = start + i * step
-
-            temp[div] = end
-
-            return temp
+                temp = Sublist(start + i * step for i in range(0, int((end - start) / step) + 1)) + [end]
 
         else:
-            raise ValueError("End value is less than start value")
+            raise ValueError("No step or division defined")
+
+        if return_rev:
+            return Sublist(reversed(temp))
+        else:
+            return temp
 
     def reverse(self):
         """reversed list"""
         return Sublist(reversed(self))
+
+    def shuffle(self):
+        """
+        shuffle the list items
+        :return: list
+        """
+        x_ = self.copy()
+        np.random.shuffle(x_)
+        return x_
+
+    def copy(self):
+        """returns copied instance"""
+        return copy.deepcopy(self)
 
     @classmethod
     def column(cls,
@@ -465,10 +546,10 @@ class Sublist(list):
         :param intvl: Interval to calculate (default: 95th percentile)
         :return: scalar
         """
-        lower = Sublist.percentile(arr, (100.0 - intvl)/2.0)
-        upper = Sublist.percentile(arr, 100.0 - (100.0 - intvl)/2.0)
+        lower = Sublist.percentile(arr, (100.0 - intvl) / 2.0)
+        upper = Sublist.percentile(arr, 100.0 - (100.0 - intvl) / 2.0)
 
-        return np.abs((upper - lower)/2.0)
+        return np.abs((upper - lower) / 2.0)
 
     @staticmethod
     def std_dev(arr):
@@ -479,11 +560,34 @@ class Sublist(list):
         """
         return np.std(arr)
 
+    @staticmethod
+    def reduce(array,
+               method='mean'):
+        """
+        Method to reduce a 2D or 3D array using a specific method
+        :param array: Numpy array
+        :param method: Method to use for reduction (options: mean, median, std_dev, percentile_x, default:mean
+                                                             here x is the percentile)
+        :return: float
+        """
+        if method == 'mean':
+            return np.mean(array)
+        elif method == 'median':
+            return np.median(array)
+        elif method == 'std_dev':
+            return np.std(array)
+        elif 'percentile' in method:
+            perc = int(method.split('_')[1])
+            return np.percentile(array, perc)
+        else:
+            raise ValueError("Invalid method type\nValid types: mean, median, std_dev, percentile_x")
+
 
 class Handler(object):
     """
     Class to handle file and folder operations
     """
+
     def __init__(self,
                  filename=None,
                  basename=None,
@@ -524,11 +628,28 @@ class Handler(object):
         else:
             pass  # print('Path already exists: ' + self.dirname)
 
-    def add_to_filename(self, string):
+    def add_to_filename(self,
+                        string=None,
+                        timestamp=False):
+        """
+        Method to append a string to a filename, before the .xxx extension
+        :param string: String to append
+        :param timestamp: If timestamp (upto seconds) should be added to a filename, before the .xxx extension
+                          This can be used in addition to the string
+        :return:
+        """
         components = self.basename.split('.')
+        if timestamp:
+            timestamp = datetime.datetime.now().isoformat().replace('-', '').replace(':', '').split('.')[0]
+
+        if string is not None:
+            string += timestamp
+        else:
+            string = timestamp
+
         if len(components) >= 2:
             return self.dirname + self.sep + '.'.join(components[0:-1]) + \
-                      string + '.' + components[-1]
+                   string + '.' + components[-1]
         else:
             return self.basename + self.sep + components[0] + string
 
@@ -548,7 +669,7 @@ class Handler(object):
                 self.filename = self.dirname + os.path.sep + self.basename + '_' + str(counter)
             else:
                 self.filename = self.dirname + os.path.sep + ''.join(components[0:-1]) + \
-                           '_(' + str(counter) + ').' + components[-1]
+                                '_(' + str(counter) + ').' + components[-1]
             counter = counter + 1
         return self.filename
 
@@ -576,7 +697,7 @@ class Handler(object):
                     self.filename = self.dirname + os.path.sep + self.basename + '_' + str(counter)
                 else:
                     self.filename = self.dirname + os.path.sep + ''.join(components[0:-1]) + \
-                               '_(' + str(counter) + ').' + components[-1]
+                                    '_(' + str(counter) + ').' + components[-1]
                 # print('Unable to delete, using: ' + filename)
                 counter = counter + 1
         return self.filename
@@ -599,17 +720,20 @@ class Handler(object):
         """
         Delete a file
         """
-        os.remove(self.filename)
+        if self.file_exists():
+            os.remove(self.filename)
 
     def file_lines(self,
-                   nlines=True):
+                   nlines=True,
+                   bufsize=102400):
         """
         Find number of lines or get text lines in a text or csv file
         :param nlines: If only the number of lines in a file should be returned
-        :return:
+        :param bufsize: size of buffer to be read
+        :return: list or number
         """
         with open(self.filename, 'r') as f:
-            bufgen = takewhile(lambda x: x, (f.read(1024 * 1024) for _ in repeat(None)))
+            bufgen = takewhile(lambda x: x, (f.read(bufsize) for _ in repeat(None)))
 
             if nlines:
                 val = sum(buf.count(b'\n') for buf in bufgen if buf)
@@ -620,7 +744,7 @@ class Handler(object):
                     if buf:
                         temp_lines = (remaining + buf).split(b'\n')
                         if len(temp_lines) <= 1:
-                            remaining += temp_lines
+                            remaining += ''.join(temp_lines)
                         else:
                             val += temp_lines[:-1]
                             remaining = temp_lines[-1]
@@ -729,17 +853,17 @@ class Handler(object):
         getcontext().prec = precision
 
         if unit == 'bit':
-            output = float(Decimal(size)*Decimal(2**3))
+            output = float(Decimal(size) * Decimal(2 ** 3))
         elif unit == 'kb':
-            output = float(Decimal(size)/Decimal(2**10))
+            output = float(Decimal(size) / Decimal(2 ** 10))
         elif unit == 'mb':
-            output = float(Decimal(size)/(Decimal(2**20)))
+            output = float(Decimal(size) / (Decimal(2 ** 20)))
         elif unit == 'gb':
-            output = float(Decimal(size)/(Decimal(2**30)))
+            output = float(Decimal(size) / (Decimal(2 ** 30)))
         elif unit == 'tb':
-            output = float(Decimal(size)/(Decimal(2**40)))
+            output = float(Decimal(size) / (Decimal(2 ** 40)))
         elif unit == 'pb':
-            output = float(Decimal(size)/(Decimal(2**50)))
+            output = float(Decimal(size) / (Decimal(2 ** 50)))
         else:
             output = size
         if as_long:
@@ -763,22 +887,29 @@ class Handler(object):
         :param append: if the lines should be appended to the file
         :return: write to file
         """
-        input_list = list(delim.join(list(str(elem) for elem in line)) for line in input_list)
+        if len(input_list) == 0:
+            raise ValueError('Empty input list supplied')
 
-        # add rownames and colnames
-        if rownames is not None:
-            if len(rownames) != len(input_list):
-                raise ValueError('Row name list does not have sufficient elements')
+        elif type(input_list[0]).__name__ in ('list', 'tuple'):
+            if rownames is not None:
+                if len(rownames) != len(input_list):
+                    raise ValueError('Row name list does not have sufficient elements')
+                else:
+                    input_list = list([rownames[i]] + elem for i, elem in enumerate(input_list))
 
-            input_list = list(str(rownames[i]) + delim + elem for i, elem in enumerate(input_list))
+            if colnames is not None:
+                if len(rownames) != len(input_list[0]):
+                    raise ValueError('Column name list does not have sufficient elements')
+                else:
+                    input_list = [colnames] + input_list
 
-            header_add = delim
+            input_list = '\n'.join(list(delim.join(list(str(elem) for elem in line)) for line in input_list))
+
+        elif type(input_list[0]).__name__ == 'str':
+            input_list = '\n'.join(input_list)
+
         else:
-            header_add = ""
-
-        if colnames is not None:
-            header = header_add + delim.join(list(str(elem) for elem in colnames))
-            input_list = [header] + input_list
+            raise ValueError('Input list not in types: list of list, list of tuples, list of strings')
 
         # create dir path if it does not exist
         self.dir_create()
@@ -790,8 +921,7 @@ class Handler(object):
             open_type = 'w'  # write
 
         with open(self.filename, open_type) as fileptr:
-            for line in input_list:
-                fileptr.write('{}\n'.format(str(line)))
+            fileptr.write('{}\n'.format(input_list))
 
     def write_slurm_script(self,
                            job_name='pyscript',
@@ -900,8 +1030,7 @@ class Handler(object):
                       line_limit=None,
                       read_random=False,
                       percent_random=50.0,
-                      systematic=False,
-                      given_header=None):
+                      systematic=False):
         """
         Read csv as list of lists with header.
         Each row is a list and a sample point.
@@ -922,7 +1051,7 @@ class Handler(object):
         if read_random:
             if 0.0 < percent_random <= 100.0:
                 sys.stdout.write('Randomizing index ... \n')
-                n_rand_lines = int((float(percent_random)/100.0)*float(n_lines))
+                n_rand_lines = int((float(percent_random) / 100.0) * float(n_lines))
                 index_list = sorted([0] + Sublist(range(1, n_lines)).random_selection(num=n_rand_lines,
                                                                                       systematic=systematic))
 
@@ -936,7 +1065,7 @@ class Handler(object):
                     if 0 < len(index_list) <= line_limit:
                         pass
                     elif len(index_list) > line_limit:
-                        index_list = index_list[:(line_limit+1)]
+                        index_list = index_list[:(line_limit + 1)]
 
                     for i, line in enumerate(f):
                         if counter > line_limit:
@@ -946,11 +1075,10 @@ class Handler(object):
                             counter += 1
 
                             if counter > int((float(perc_) / 100.0) * float(len(index_list))):
-                                if perc_ < 100:
-                                    sys.stdout.write('{}..'.format(str(perc_)))
-                                    perc_ += 10
-                                else:
-                                    sys.stdout.write('100!\n')
+                                sys.stdout.write('{}..'.format(str(perc_)))
+                                perc_ += 10
+
+                    sys.stdout.write('!\n')
 
                 else:
                     for line in f:
@@ -960,11 +1088,10 @@ class Handler(object):
                         counter += 1
 
                         if counter > int((float(perc_) / 100.0) * float(line_limit)):
-                            if perc_ < 100:
-                                sys.stdout.write('{}..'.format(str(perc_)))
-                                perc_ += 10
-                            else:
-                                sys.stdout.write('100!\n')
+                            sys.stdout.write('{}..'.format(str(perc_)))
+                            perc_ += 10
+
+                    sys.stdout.write('!\n')
 
             else:
                 if len(index_list) > 0:
@@ -981,24 +1108,21 @@ class Handler(object):
                                 sys.stdout.write('{}..'.format(str(perc_)))
                                 perc_ += 10
 
-                    sys.stdout.write('100!\n')
+                    sys.stdout.write('!\n')
 
                 else:
                     for line in f:
                         lines.append(list(elem.strip() for elem in line.split(',')))
                         counter += 1
 
-                        if counter > int((float(perc_)/100.0) * float(n_lines)):
+                        if counter > int((float(perc_) / 100.0) * float(n_lines)):
                             sys.stdout.write('{}..'.format(str(perc_)))
                             perc_ += 10
 
-                    sys.stdout.write('100!\n')
+                    sys.stdout.write('!\n')
 
         # convert col names to list of strings
-        if given_header is None:
-            names = list(elem.strip() for elem in lines[0])
-        else:
-            names = given_header
+        names = list(elem.strip() for elem in lines[0])
 
         if len(lines) > 0:
             # convert to list
@@ -1028,6 +1152,9 @@ class Handler(object):
         if outfile is None:
             raise ValueError("No file name for writing")
 
+        if type(list_of_dicts).__name__ not in ('tuple', 'list'):
+            list_of_dicts = [list_of_dicts]
+
         lines = list()
         if header:
             lines.append(delimiter.join(list(list_of_dicts[0])))
@@ -1044,10 +1171,14 @@ class Handler(object):
                     f.write(line + '\n')
 
     def find_all(self,
-                 pattern='*'):
+                 pattern='*',
+                 find_dirs=False,
+                 verbose=False):
         """
         Find all the names that match pattern
         :param pattern: pattern to look for in the folder
+        :param find_dirs: If folder names should be searched instead of files
+        :param verbose: Should the files be displayed
         """
         result = []
         # search for a given pattern in a folder path
@@ -1060,20 +1191,43 @@ class Handler(object):
             self.dirname += self.sep
 
         for root, dirs, files in os.walk(self.dirname):
-            for name in files:
-                if fnmatch.fnmatch(name, search_str):
-                    if str(root) in str(self.dirname) or str(self.dirname) in str(root):
-                        result.append(os.path.join(root, name))
+            if find_dirs:
+                for dirname in dirs:
+                    if verbose:
+                        Opt.cprint(os.path.join(root, dirname))
 
+                    if fnmatch.fnmatch(dirname, search_str):
+                        if str(root) in str(self.dirname) or str(self.dirname) in str(root):
+                            result.append(os.path.join(root, dirname))
+
+            else:
+                for name in files:
+                    if verbose:
+                        Opt.cprint(os.path.join(root, name))
+
+                    if fnmatch.fnmatch(name, search_str):
+                        if str(root) in str(self.dirname) or str(self.dirname) in str(root):
+                            result.append(os.path.join(root, name))
+        if verbose:
+            Opt.cprint('======================\nFound {} results for {} in {}:'.format(str(len(result)),
+                                                                                       pattern,
+                                                                                       self.dirname))
+            for filename in result:
+                Opt.cprint(filename)
+            Opt.cprint('======================')
         return result  # list
 
+    def find_files(self,
+                   pattern='*'):
+        return list(f_ for f_ in list(f for f in os.listdir(self.dirname)
+                                      if os.path.isfile(os.path.join(self.dirname, f)))
+                    if pattern in f_)
+
     @staticmethod
-    def string_to_type(x,
-                       return_type=False):
+    def string_to_type(x):
         """
         Method to return name of the data type
         :param x: input item
-        :param return_type: return the type of variable
         :return: string
         """
         if type(x).__name__ == 'str':
@@ -1089,16 +1243,14 @@ class Handler(object):
                     except:
                         val = None
             x = val
-        if return_type:
-            return type(x).__name__
-        else:
-            return x
+        return x
 
 
 class Opt:
     """
     Class to handle notices
     """
+
     def __init__(self,
                  obj=None):
         self.obj = obj  # mutable object
@@ -1115,17 +1267,17 @@ class Opt:
         process = psutil.Process(os.getpid())
         mem = process.memory_info().rss
 
-        if 2**10 <= mem < 2**20:
-            div = float(2**10)
+        if 2 ** 10 <= mem < 2 ** 20:
+            div = float(2 ** 10)
             suff = ' KB'
-        elif 2**20 <= mem < 2**30:
-            div = float(2**20)
+        elif 2 ** 20 <= mem < 2 ** 30:
+            div = float(2 ** 20)
             suff = ' MB'
-        elif 2**30 <= mem < 2**40:
-            div = float(2**30)
+        elif 2 ** 30 <= mem < 2 ** 40:
+            div = float(2 ** 30)
             suff = ' GB'
-        elif mem >= 2**40:
-            div = float(2**40)
+        elif mem >= 2 ** 40:
+            div = float(2 ** 40)
             suff = ' TB'
         else:
             div = 1.0
@@ -1163,12 +1315,13 @@ class Opt:
 
     @staticmethod
     def temp_name():
-        return 'T' + datetime.datetime.now().isoformat().replace(':', '')\
+        return 'T' + datetime.datetime.now().isoformat().replace(':', '') \
             .replace('.', '').replace('-', '').replace('T', '') + '.tmp'
 
 
 class FTPHandler(Handler):
     """Class to handle remote IO for ftp connection"""
+
     def __init__(self,
                  filename=None,
                  basename=None,
@@ -1244,7 +1397,7 @@ class FTPHandler(Handler):
                 try:
                     if ftp_conn.retrbinary("RETR {}".format(self.ftpfilepath), f.write):
                         Opt.cprint('Copying file {} to {}'.format(Handler(self.ftpfilepath).basename,
-                                                             self.dirname))
+                                                                  self.dirname))
                 except Exception:
                     Opt.cprint('File {} not found or already written'.format(self.basename))
 
