@@ -5,3 +5,4 @@ from logger import Logger
 from distance import Distance, Euclidean
 from samples import Samples
 from timer import Timer
+from raster import Raster
