@@ -110,12 +110,27 @@ def composite(coll,
     :param reduce_type: options: average, total, rms, diag
     :return:
     """
-    coll_ = ee.ImageCollection(coll).map(lambda x: x.unmask(0.0).multiply(ee.Image(multiplier)))
+    coll_ = ee.ImageCollection(coll).map(lambda x: x.multiply(ee.Image(multiplier)))
 
     if reduce_type == 'average':
-        return ee.ImageCollection(coll_).reduce(ee.Reducer.mean())
+        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
+        return ee.ImageCollection(coll__).reduce(ee.Reducer.mean())
+    if reduce_type == 'median':
+        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
+        return ee.ImageCollection(coll__).reduce(ee.Reducer.median())
     elif reduce_type == 'total':
-        return ee.ImageCollection(coll_).reduce(ee.Reducer.sum())
+        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
+        return ee.ImageCollection(coll__).reduce(ee.Reducer.sum())
+    elif reduce_type == 'max':
+        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
+        return ee.ImageCollection(coll__).reduce(ee.Reducer.max())
+    elif reduce_type == 'min':
+        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
+        return ee.ImageCollection(coll__).reduce(ee.Reducer.min())
+    elif 'pctl' in reduce_type:
+        pctl = int(reduce_type.replace('pctl_', ''))
+        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
+        return ee.ImageCollection(coll__).reduce(ee.Reducer.percentile([pctl]))
     elif reduce_type == 'rms':
         coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
         return ee.Image(coll__.reduce(ee.Reducer.mean())).sqrt()
@@ -149,7 +164,7 @@ if __name__ == '__main__':
 
     print(expand_image_meta(lst.first().getInfo()))
 
-    drive_folder = 'kyoko_precip_temp_v2'
+    drive_folder = 'kyoko_precip_temp_v3'
 
     aoi_coords = [[[-155.75502485485526, 68.4916626820707],
                   [-155.75502485485526, 61.4225492862472],
@@ -240,11 +255,17 @@ if __name__ == '__main__':
                                               str_id + 'precip_data_img',
                                               task_config)
 
-                task1.start()
+                # task1.start()
                 print(task1)
 
-                data_img = ee.Image(composite(lst_coll,  0.02, 'average').select([0], [str_id + 'lstC']))\
-                                   .subtract(273.15).clip(aoi)
+                data_img = ee.Image(composite(lst_coll,  0.02, 'average').select([0], [str_id + 'lstC_avg']))\
+                                   .subtract(273.15).clip(aoi) \
+                    .addBands(ee.Image(composite(lst_coll, 0.02, 'median').select([0], [str_id + 'lstC_median'])) \
+                              .subtract(273.15).clip(aoi)) \
+                    .addBands(ee.Image(composite(lst_coll,  0.02, 'max').select([0], [str_id + 'lstC_max']))\
+                               .subtract(273.15).clip(aoi))\
+                        .addBands(ee.Image(composite(lst_coll, 0.02, 'min').select([0], [str_id + 'lstC_min']))\
+                                  .subtract(273.15).clip(aoi))
 
                 print(expand_image_meta(data_img.getInfo()))
 
