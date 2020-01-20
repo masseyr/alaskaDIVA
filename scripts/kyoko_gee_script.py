@@ -102,35 +102,34 @@ def filter_coll(coll,
 
 def composite(coll,
               multiplier=1.0,
+              unmask_val=None,
               reduce_type='average'):
     """
     Function to reduce a given collection
-    :param coll:
-    :param multiplier:
+    :param coll: ee.ImageCollection object
+    :param multiplier: scalar to multiply
+    :param unmask_val: value to unmask to
     :param reduce_type: options: average, total, rms, diag
-    :return:
+    :return: ee.Image object
     """
-    coll_ = ee.ImageCollection(coll).map(lambda x: x.multiply(ee.Image(multiplier)))
+    if unmask_val is None:
+        coll_ = ee.ImageCollection(coll).map(lambda x: x.multiply(ee.Image(multiplier)))
+    else:
+        coll_ = ee.ImageCollection(coll).map(lambda x: x.multiply(ee.Image(multiplier)).unmask(unmask_val))
 
     if reduce_type == 'average':
-        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
-        return ee.ImageCollection(coll__).reduce(ee.Reducer.mean())
+        return ee.ImageCollection(coll_).reduce(ee.Reducer.mean())
     if reduce_type == 'median':
-        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
-        return ee.ImageCollection(coll__).reduce(ee.Reducer.median())
+        return ee.ImageCollection(coll_).reduce(ee.Reducer.median())
     elif reduce_type == 'total':
-        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
-        return ee.ImageCollection(coll__).reduce(ee.Reducer.sum())
+        return ee.ImageCollection(coll_).reduce(ee.Reducer.sum())
     elif reduce_type == 'max':
-        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
-        return ee.ImageCollection(coll__).reduce(ee.Reducer.max())
+        return ee.ImageCollection(coll_).reduce(ee.Reducer.max())
     elif reduce_type == 'min':
-        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
-        return ee.ImageCollection(coll__).reduce(ee.Reducer.min())
+        return ee.ImageCollection(coll_).reduce(ee.Reducer.min())
     elif 'pctl' in reduce_type:
         pctl = int(reduce_type.replace('pctl_', ''))
-        coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
-        return ee.ImageCollection(coll__).reduce(ee.Reducer.percentile([pctl]))
+        return ee.ImageCollection(coll_).reduce(ee.Reducer.percentile([pctl]))
     elif reduce_type == 'rms':
         coll__ = ee.ImageCollection(coll_).map(lambda x: ee.Image(x).multiply(ee.Image(x)))
         return ee.Image(coll__.reduce(ee.Reducer.mean())).sqrt()
@@ -229,12 +228,15 @@ if __name__ == '__main__':
 
             if n_gpm > 0 and n_lst > 0:
 
-                data_img = ee.Image(composite(gpm_precip_coll, 0.5, 'total').select([0],
-                                                                                    [str_id + 'precipMM'])
-                                    .addBands(composite(gpm_error_coll,  0.5, 'diag').select([0],
-                                                                                             [str_id + 'precipErrDiagMM']))
-                                    .addBands(composite(gpm_error_coll,  0.5, 'rms').select([0],
-                                                                                            [str_id + 'precipErrRMSMM']))
+                data_img = ee.Image(composite(gpm_precip_coll, 0.5, 0.0, 'total').select([0],
+                                                                                         [str_id +
+                                                                                          'precipMM'])
+                                    .addBands(composite(gpm_error_coll,  0.5, 0.0, 'diag').select([0],
+                                                                                                  [str_id +
+                                                                                                   'precipErrDiagMM']))
+                                    .addBands(composite(gpm_error_coll,  0.5, 0.0, 'rms').select([0],
+                                                                                                 [str_id +
+                                                                                                  'precipErrRMSMM']))
                                     ).clip(aoi)
 
                 print(expand_image_meta(data_img.getInfo()))
@@ -255,16 +257,16 @@ if __name__ == '__main__':
                                               str_id + 'precip_data_img',
                                               task_config)
 
-                # task1.start()
+                task1.start()
                 print(task1)
 
-                data_img = ee.Image(composite(lst_coll,  0.02, 'average').select([0], [str_id + 'lstC_avg']))\
+                data_img = ee.Image(composite(lst_coll,  0.02, None, 'average').select([0], [str_id + 'lstC_avg']))\
                                    .subtract(273.15).clip(aoi) \
-                    .addBands(ee.Image(composite(lst_coll, 0.02, 'median').select([0], [str_id + 'lstC_median'])) \
+                    .addBands(ee.Image(composite(lst_coll, 0.02, None, 'median').select([0], [str_id + 'lstC_median'])) \
                               .subtract(273.15).clip(aoi)) \
-                    .addBands(ee.Image(composite(lst_coll,  0.02, 'max').select([0], [str_id + 'lstC_max']))\
+                    .addBands(ee.Image(composite(lst_coll,  0.02, None, 'max').select([0], [str_id + 'lstC_max']))\
                                .subtract(273.15).clip(aoi))\
-                        .addBands(ee.Image(composite(lst_coll, 0.02, 'min').select([0], [str_id + 'lstC_min']))\
+                        .addBands(ee.Image(composite(lst_coll, 0.02, None, 'min').select([0], [str_id + 'lstC_min']))\
                                   .subtract(273.15).clip(aoi))
 
                 print(expand_image_meta(data_img.getInfo()))
