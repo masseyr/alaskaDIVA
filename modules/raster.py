@@ -1020,7 +1020,6 @@ class Raster(object):
                   out_format='GTiff',
                   out_nodatavalue=None,
                   verbose=False,
-                  return_vrt=False,
                   **creation_options):
         """
         Method to reproject raster object
@@ -1036,7 +1035,6 @@ class Raster(object):
         :param output_bounds: output bounds as (minX, minY, maxX, maxY) in target SRS
         :param out_format: output format ("GTiff", etc...)
         :param verbose:
-        :param return_vrt:
         :param creation_options:
         :return:
 
@@ -1141,9 +1139,14 @@ class Raster(object):
         if outfile is None:
             outfile = Handler(self.name).dirname + Handler().sep + '_reproject.tif'
 
-        vrt_ds = gdal.Warp(outfile, self.name, options=vrt_opt)
-
-        if return_vrt:
-            return vrt_ds
-        else:
+        try:
+            vrt_ds = gdal.Warp(outfile, self.name, options=vrt_opt)
             vrt_ds = None
+        except Exception as e:
+            print(e)
+
+        if Handler(outfile).file_exists():
+            return True
+        else:
+            return False
+
