@@ -1031,8 +1031,9 @@ class Handler(object):
                       return_dicts=False,
                       line_limit=None,
                       read_random=False,
-                      percent_random=50.0,
-                      systematic=False):
+                      percent_random=None,
+                      systematic=False,
+                      verbose=False):
         """
         Read csv as list of lists with header.
         Each row is a list and a sample point.
@@ -1041,87 +1042,49 @@ class Handler(object):
         :param read_random: If lines to be read should be randomly selected
         :param percent_random: What percentage of lines should be randomly selected (default: 50%)
         :param systematic: If the samples should be systematic instead of random (used only if read_random is True)
+        :param verbose: IF function steps should be displayed
         :returns: dictionary of data
         """
         lines = list()
-        index_list = list()
 
         n_lines = self.file_lines(nlines=True)
+        index_list = range(0, n_lines)
 
-        sys.stdout.write('Lines in file: {}\n'.format(str(n_lines)))
+        if verbose:
+            sys.stdout.write('Reading file : {}\n'.format(self.basename))
+            sys.stdout.write('Lines in file: {}\n'.format(str(n_lines)))
 
         if read_random:
-            if 0.0 < percent_random <= 100.0:
-                sys.stdout.write('Randomizing index ... \n')
-                n_rand_lines = int((float(percent_random) / 100.0) * float(n_lines))
-                index_list = sorted([0] + Sublist(range(1, n_lines)).random_selection(num=n_rand_lines,
+            if percent_random is not None:
+                if 0.0 < percent_random <= 100.0:
+                    n_rand_lines = int((float(percent_random) / 100.0) * float(n_lines))
+                    index_list = sorted([0] + Sublist(range(1, n_lines)).random_selection(num=n_rand_lines,
+                                                                                          systematic=systematic))
+            else:
+                index_list = sorted([0] + Sublist(range(1, n_lines)).random_selection(num=n_lines,
                                                                                       systematic=systematic))
-
-        sys.stdout.write('Reading file : ')
+        if line_limit:
+            if 0 <= len(index_list) <= line_limit:
+                pass
+            elif len(index_list) > line_limit:
+                index_list = list(index_list[i] for i in range(line_limit))
 
         counter = 0
         perc_ = 0
         with open(self.filename, 'r') as f:
-            if line_limit:
-                if len(index_list) > 0:
-                    if 0 < len(index_list) <= line_limit:
-                        pass
-                    elif len(index_list) > line_limit:
-                        index_list = index_list[:(line_limit + 1)]
+            for i, line in enumerate(f):
+                if counter > len(index_list):
+                    break
+                if i == index_list[counter]:
+                    lines.append(list(elem.strip() for elem in line.split(',')))
+                    counter += 1
 
-                    for i, line in enumerate(f):
-                        if counter > line_limit:
-                            break
-                        if i == index_list[counter]:
-                            lines.append(list(elem.strip() for elem in line.split(',')))
-                            counter += 1
-
-                            if counter > int((float(perc_) / 100.0) * float(len(index_list))):
-                                sys.stdout.write('{}..'.format(str(perc_)))
-                                perc_ += 10
-
-                    sys.stdout.write('!\n')
-
-                else:
-                    for line in f:
-                        if counter > line_limit:
-                            break
-                        lines.append(list(elem.strip() for elem in line.split(',')))
-                        counter += 1
-
-                        if counter > int((float(perc_) / 100.0) * float(line_limit)):
+                    if counter > int((float(perc_) / 100.0) * float(len(index_list))):
+                        if verbose:
                             sys.stdout.write('{}..'.format(str(perc_)))
-                            perc_ += 10
-
-                    sys.stdout.write('!\n')
-
-            else:
-                if len(index_list) > 0:
-
-                    for i, line in enumerate(f):
-                        if counter >= len(index_list):
-                            break
-
-                        if index_list[counter] == i:
-                            lines.append(list(elem.strip() for elem in line.split(',')))
-                            counter += 1
-
-                            if counter > int((float(perc_) / 100.0) * float(len(index_list))):
-                                sys.stdout.write('{}..'.format(str(perc_)))
-                                perc_ += 10
-
-                    sys.stdout.write('!\n')
-
-                else:
-                    for line in f:
-                        lines.append(list(elem.strip() for elem in line.split(',')))
-                        counter += 1
-
-                        if counter > int((float(perc_) / 100.0) * float(n_lines)):
-                            sys.stdout.write('{}..'.format(str(perc_)))
-                            perc_ += 10
-
-                    sys.stdout.write('!\n')
+                        perc_ += 10
+            if verbose:
+                sys.stdout.write('100!\n')
 
         # convert col names to list of strings
         names = list(elem.strip() for elem in lines[0])
@@ -1129,7 +1092,8 @@ class Handler(object):
         if len(lines) > 0:
             # convert to list
             if return_dicts:
-                sys.stdout.write('Converting to Dictionaries...\n')
+                if verbose:
+                    sys.stdout.write('Converting to Dictionaries...\n')
                 return list(dict(zip(names, list(self.string_to_type(elem) for elem in feat)))
                             for feat in lines[1:])
             else:
